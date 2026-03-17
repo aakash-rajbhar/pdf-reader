@@ -64,12 +64,10 @@ function applyHighlights(container: HTMLDivElement, query: string) {
       span.style.backgroundColor = "rgba(255, 210, 0, 0.45)";
       span.style.color            = "#000";
       span.style.borderRadius     = "2px";
-      span.dataset.highlight      = "true";
     } else {
       span.style.removeProperty("background-color");
       span.style.removeProperty("color");
       span.style.removeProperty("border-radius");
-      delete span.dataset.highlight;
     }
   });
 }
@@ -80,14 +78,6 @@ function clearHighlights(container: HTMLDivElement) {
     span.style.removeProperty("color");
     span.style.removeProperty("border-radius");
   });
-}
-function scrollToFirstHighlight(container: HTMLDivElement) {
-  const first = container.querySelector<HTMLSpanElement>(
-    "span[data-highlight='true]"
-  );
-  if (first) {
-    first.scrollIntoView({ behavior: "smooth", block: "center" });
-  }
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -279,12 +269,9 @@ export function usePDF(
       });
       await textLayer.render();
 
-      await new Promise<void>((r) => setTimeout(r, 0));
-
       // Re-apply search highlights if search is active
       if (searchQueryRef.current && docGenRef.current === generation) {
         applyHighlights(container, searchQueryRef.current);
-        scrollToFirstHighlight(container);
       }
     } catch { /* non-critical */ }
   }
@@ -351,6 +338,34 @@ export function usePDF(
 
     return clearRenderTimer;
   }, [state.currentPage, state.zoom, state.isLoaded, state.loadId, renderPage]);
+
+  // ── Reset to empty state (no PDF open) ────────────────────────────────────
+
+  const resetPDF = useCallback(async () => {
+    cancelActiveRender();
+    clearRenderTimer();
+    searchAbortRef.current = true;
+    if (docRef.current) {
+      await docRef.current.destroy();
+      docRef.current = null;
+      pageCache.current.forEach((bmp) => bmp.close());
+      pageCache.current.clear();
+      textCache.current.clear();
+    }
+    docGenRef.current += 1;
+    // Clear canvas so old PDF frame doesn't linger
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext("2d");
+      if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.width = 0;
+      canvas.height = 0;
+    }
+    if (textLayerRef.current) textLayerRef.current.innerHTML = "";
+    setState(INITIAL_PDF_STATE);
+    setSearchState(INITIAL_SEARCH_STATE);
+    searchQueryRef.current = "";
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Navigation ─────────────────────────────────────────────────────────────
 
@@ -498,19 +513,10 @@ export function usePDF(
 
   // Navigate page when search match index changes
   useEffect(() => {
-    if (searchState.results.length === 0 || searchState.currentIndex < 0) return;
-    const targetPage = searchState.results[searchState.currentIndex];
-    
-    if (targetPage === state.currentPage) {
-      // Already on this page — just scroll to the highlight directly
-      const container = textLayerRef.current;
-      if (container) scrollToFirstHighlight(container);
-    } else {
-      goToPage(targetPage);
-      // scrollToFirstHighlight will be called by renderTextLayer after re-render
+    if (searchState.results.length > 0 && searchState.currentIndex >= 0) {
+      goToPage(searchState.results[searchState.currentIndex]);
     }
   }, [searchState.currentIndex]); // eslint-disable-line react-hooks/exhaustive-deps
-
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -518,6 +524,7 @@ export function usePDF(
     // PDF state
     state,
     loadPDF,
+    resetPDF,
     // Navigation
     goToPage, nextPage, prevPage, firstPage, lastPage,
     // Zoom

@@ -182,7 +182,9 @@ export const PDFViewer = forwardRef<HTMLDivElement, PDFViewerProps>(
         {isLoading && <LoadingState />}
 
         {/* ── Error ── */}
-        {error && <ErrorState message={error} onRetry={onOpenFile} />}
+        {error && !isLoaded && (
+          <ErrorState message={error} onRetry={onOpenFile} />
+        )}
 
         {/* ── Canvas ── */}
         {(isLoaded || isLoading) && (

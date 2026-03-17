@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use tauri::Manager;
+use tauri::Emitter;
 
 fn main() {
     tauri::Builder::default()
@@ -9,12 +10,26 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();
-            // Center window on startup
             window.center().unwrap();
-            // Set min size
             window.set_min_size(Some(tauri::Size::Physical(
                 tauri::PhysicalSize { width: 800, height: 600 }
             ))).unwrap();
+
+            // ── Handle file passed via double-click / file association ──
+            let args: Vec<String> = std::env::args().collect();
+            if args.len() > 1 {
+                let file_path = args[1].clone();
+                // Only handle if it looks like a PDF path
+                if file_path.to_lowercase().ends_with(".pdf") {
+                    let window_clone = window.clone();
+                    std::thread::spawn(move || {
+                        // Wait for frontend to mount and register its listener
+                        std::thread::sleep(std::time::Duration::from_millis(900));
+                        window_clone.emit("open-file", file_path).ok();
+                    });
+                }
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![read_pdf_file])

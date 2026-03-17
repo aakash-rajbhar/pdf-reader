@@ -1,5 +1,5 @@
 // Stub type declarations for Tauri v2 plugins
-// These are only used at runtime inside Tauri; browser builds use the file-input fallback.
+// These are only used at runtime inside Tauri; browser builds use fallbacks.
 
 declare module "@tauri-apps/plugin-dialog" {
   export interface OpenDialogOptions {
@@ -20,24 +20,15 @@ declare module "@tauri-apps/plugin-shell" {
   export function open(path: string): Promise<void>;
 }
 
-declare module "@tauri-apps/api/webviewWindow" {
-  export function getCurrentWebviewWindow(): {
-    onFileDropEvent(
-      handler: (event: {
-        payload: {
-          type: "hover" | "drop" | "cancel";
-          paths: string[];
-          position?: { x: number; y: number };
-        };
-      }) => void                    // ← handler returns void
-    ): Promise<() => void>;         // ← onFileDropEvent itself returns the unlisten fn
-  };
-}
-
 declare module "@tauri-apps/api/event" {
   export type UnlistenFn = () => void;
   export function listen<T>(
     event: string,
     handler: (event: { payload: T }) => void
   ): Promise<UnlistenFn>;
+}
+
+
+declare module "@tauri-apps/api/core" {
+  export function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T>;
 }

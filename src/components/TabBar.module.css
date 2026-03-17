@@ -1,0 +1,143 @@
+/* ── Tab Bar Container ── */
+.bar {
+  display: flex;
+  align-items: stretch;
+  height: 30px;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: background-color 200ms ease;
+}
+
+/* ── Scrollable tab list ── */
+.tabList {
+  display: flex;
+  align-items: stretch;
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.tabList::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Individual tab ── */
+.tab {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  max-width: 200px;
+  min-width: 80px;
+  border-right: 1px solid var(--border-subtle);
+  position: relative;
+  transition: background 120ms ease;
+}
+.tab:hover {
+  background: var(--bg-button);
+}
+.tab.active {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--accent);
+}
+
+/* ── Tab label button ── */
+.tabLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  padding: 0 6px 0 12px;
+  height: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  min-width: 0;
+  color: var(--text-secondary);
+  transition: color 120ms;
+}
+.tab.active .tabLabel {
+  color: var(--text-primary);
+}
+.tab:hover .tabLabel {
+  color: var(--text-primary);
+}
+
+/* ── Dot indicator (active tab) ── */
+.tabDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 150ms;
+}
+.tab.active .tabDot {
+  opacity: 1;
+}
+
+/* ── Tab name text ── */
+.tabName {
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.01em;
+}
+
+/* ── Close button ── */
+.tabClose {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  margin-right: 4px;
+  opacity: 0;
+  transition:
+    opacity 100ms,
+    background 100ms,
+    color 100ms;
+  font-family: inherit;
+}
+.tab:hover .tabClose,
+.tab.active .tabClose {
+  opacity: 1;
+}
+.tabClose:hover {
+  background: var(--bg-button-hover);
+  color: var(--text-primary);
+}
+
+/* ── New tab button ── */
+.newTab {
+  flex-shrink: 0;
+  width: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background 100ms,
+    color 100ms;
+  font-family: inherit;
+}
+.newTab:hover {
+  background: var(--bg-button);
+  color: var(--text-primary);
+}
