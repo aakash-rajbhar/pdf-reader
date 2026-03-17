@@ -197,23 +197,37 @@ function PDFApp() {
   );
 
   // ── Double-click / file association open (Tauri) ──────────────────────────
+  // useEffect(() => {
+  //   if (!IS_TAURI) return;
+  //   let unlisten: (() => void) | undefined;
+  //   import("@tauri-apps/api/event").then(({ listen }) => {
+  //     listen<string>("open-file", async (event) => {
+  //       const filePath = event.payload;
+  //       if (!filePath?.toLowerCase().endsWith(".pdf")) return;
+  //       const fileName = filePath.split(/[/\\]/).pop() ?? "document.pdf";
+  //       await loadFromPath(filePath, fileName);
+  //     }).then((fn) => {
+  //       unlisten = fn;
+  //     });
+  //   });
+  //   return () => {
+  //     unlisten?.();
+  //   };
+  // }, [loadFromPath]);
+
   useEffect(() => {
     if (!IS_TAURI) return;
-    let unlisten: (() => void) | undefined;
-    import("@tauri-apps/api/event").then(({ listen }) => {
-      listen<string>("open-file", async (event) => {
-        const filePath = event.payload;
-        if (!filePath?.toLowerCase().endsWith(".pdf")) return;
+    // On mount, ask Rust if a file was passed via double-click/CLI
+    import("@tauri-apps/api/core").then(({ invoke }) => {
+      invoke<string | null>("get_initial_file").then(async (filePath) => {
+        if (!filePath) return;
         const fileName = filePath.split(/[/\\]/).pop() ?? "document.pdf";
         await loadFromPath(filePath, fileName);
-      }).then((fn) => {
-        unlisten = fn;
       });
     });
-    return () => {
-      unlisten?.();
-    };
-  }, [loadFromPath]);
+    // Empty deps — runs once on mount only
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Fit to width ──────────────────────────────────────────────────────────
   const handleFitToWidth = useCallback(() => {
