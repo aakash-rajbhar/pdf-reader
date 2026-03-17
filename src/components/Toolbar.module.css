@@ -1,0 +1,197 @@
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 52px;
+  padding: 0 16px;
+  background: var(--bg-toolbar);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+  flex-shrink: 0;
+  transition: var(--transition-theme);
+  position: relative;
+  z-index: 10;
+}
+
+/* ── Sections ── */
+.section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.center {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* ── Open Button ── */
+.openBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-button);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.openBtn:hover {
+  background: var(--bg-button-hover);
+  border-color: var(--border-focus);
+}
+.openBtn:active {
+  background: var(--bg-button-active);
+}
+
+/* ── Filename ── */
+.fileName {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 260px;
+  letter-spacing: 0.01em;
+}
+
+/* ── Group (nav/zoom) ── */
+.group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg-button);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+}
+
+/* ── Icon buttons ── */
+.iconBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 28px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 100ms ease, color 100ms ease;
+  font-family: inherit;
+}
+.iconBtn:hover:not(:disabled) {
+  background: var(--bg-button-hover);
+  color: var(--text-primary);
+}
+.iconBtn:active:not(:disabled) {
+  background: var(--bg-button-active);
+}
+.iconBtn:disabled {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+/* ── Page indicator ── */
+.pageIndicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 4px;
+}
+
+.pageOf {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Number buttons (click to edit) ── */
+.numBtn {
+  min-width: 36px;
+  padding: 2px 6px;
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  font-family: inherit;
+  cursor: text;
+  text-align: center;
+  transition: background 100ms, border-color 100ms;
+}
+.numBtn:hover {
+  background: var(--bg-input);
+  border-color: var(--border-focus);
+}
+
+/* ── Inline inputs ── */
+.numInput {
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-focus);
+  border-radius: 4px;
+  padding: 2px 5px;
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  font-family: inherit;
+  text-align: center;
+  outline: none;
+}
+
+.zoomInputWrap {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.pct {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ── Divider ── */
+.divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+/* ── Theme button ── */
+.themeBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms, color 120ms;
+  font-family: inherit;
+}
+.themeBtn:hover {
+  background: var(--bg-button-hover);
+  border-color: var(--border-focus);
+  color: var(--text-primary);
+}
