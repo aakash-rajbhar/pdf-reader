@@ -58,26 +58,66 @@ const INITIAL_SEARCH_STATE: SearchState = {
 // ─── Text highlight helpers ───────────────────────────────────────────────────
 
 function applyHighlights(container: HTMLDivElement, query: string) {
-  const lq = query.toLowerCase();
-  container.querySelectorAll<HTMLSpanElement>("span").forEach((span) => {
-    if (span.textContent?.toLowerCase().includes(lq)) {
-      span.style.backgroundColor = "rgba(255, 210, 0, 0.45)";
-      span.style.color            = "#000";
-      span.style.borderRadius     = "2px";
-    } else {
-      span.style.removeProperty("background-color");
-      span.style.removeProperty("color");
-      span.style.removeProperty("border-radius");
-    }
-  });
-}
+  const spans = Array.from(container.querySelectorAll<HTMLSpanElement>("span"));
 
-function clearHighlights(container: HTMLDivElement) {
-  container.querySelectorAll<HTMLSpanElement>("span").forEach((span) => {
+  // Clear all previous highlights first
+  spans.forEach((span) => {
     span.style.removeProperty("background-color");
     span.style.removeProperty("color");
     span.style.removeProperty("border-radius");
+    delete span.dataset.highlight;
   });
+
+  if (!query.trim()) return;
+
+  // Build a map of character offset → span
+  const lq      = query.toLowerCase();
+  let   fullText = "";
+  const spanMap: Array<{ span: HTMLSpanElement; start: number; end: number }> = [];
+
+  spans.forEach((span) => {
+    const text = span.textContent ?? "";
+    spanMap.push({ span, start: fullText.length, end: fullText.length + text.length });
+    fullText += text;
+  });
+
+  // Find all match positions in the concatenated text
+  const lowerFull = fullText.toLowerCase();
+  let   searchPos = 0;
+
+  while (searchPos < lowerFull.length) {
+    const matchStart = lowerFull.indexOf(lq, searchPos);
+    if (matchStart === -1) break;
+    const matchEnd = matchStart + lq.length;
+
+    // Highlight every span that overlaps this match range
+    spanMap.forEach(({ span, start, end }) => {
+      if (end > matchStart && start < matchEnd) {
+        span.style.backgroundColor = "rgba(255, 210, 0, 0.5)";
+        span.style.color           = "transparent";
+        span.style.borderRadius    = "2px";
+        span.dataset.highlight     = "true";
+      }
+    });
+
+    searchPos = matchEnd;
+  }
+}
+
+function clearHighlights(container: HTMLDivElement) {
+  container.querySelectorAll<HTMLSpanElement>("span[data-highlight]").forEach((span) => {
+    span.style.removeProperty("background-color");
+    span.style.removeProperty("color");
+    span.style.removeProperty("border-radius");
+    delete span.dataset.highlight;
+  });
+}
+
+function scrollToFirstHighlight(container: HTMLDivElement) {
+  const first = container.querySelector<HTMLSpanElement>("span[data-highlight='true']");
+  if (first) {
+    first.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -249,18 +289,26 @@ export function usePDF(
     generation: number
   ) {
     const container = textLayerRef.current;
-    if (!container || docGenRef.current !== generation) return;
+    const canvas    = canvasRef.current;
+    if (!container || !canvas || docGenRef.current !== generation) return;
 
     try {
       const page        = await doc.getPage(pageNum);
-      const viewport    = page.getViewport({ scale: zoom });
+      const cssWidth    = parseFloat(canvas.style.width || "0");
+      const cssHeight    = parseFloat(canvas.style.height || "0");
+
+
+      const baseViewport = page.getViewport({ scale: 1.0 });
+      const scale        = cssWidth / baseViewport.width;
+      const viewport     = page.getViewport({ scale });
+
       const textContent = await page.getTextContent();
 
       if (docGenRef.current !== generation) return;
-
+      
       container.innerHTML    = "";
-      container.style.width  = `${viewport.width}px`;
-      container.style.height = `${viewport.height}px`;
+      container.style.width  = `${cssWidth}px`;
+      container.style.height = `${cssHeight}px`;
 
       const textLayer = new pdfjsLib.TextLayer({
         textContentSource: textContent,
@@ -268,10 +316,13 @@ export function usePDF(
         viewport,
       });
       await textLayer.render();
+      container.style.setProperty("--scale-factor", String(scale));
+      await new Promise<void>((r) => setTimeout(r, 0));
 
-      // Re-apply search highlights if search is active
+      
       if (searchQueryRef.current && docGenRef.current === generation) {
         applyHighlights(container, searchQueryRef.current);
+        scrollToFirstHighlight(container);
       }
     } catch { /* non-critical */ }
   }
@@ -454,7 +505,7 @@ export function usePDF(
         let pageText = textCache.current.get(p);
         if (!pageText) {
           const page        = await doc.getPage(p);
-          const textContent = await page.getTextContent();
+          const textContent = await page.getTextContent({includeMarkedContent: true});
           pageText = textContent.items
             .map((item: unknown) =>
               typeof item === "object" && item !== null && "str" in item
@@ -512,11 +563,27 @@ export function usePDF(
   }, []);
 
   // Navigate page when search match index changes
-  useEffect(() => {
-    if (searchState.results.length > 0 && searchState.currentIndex >= 0) {
-      goToPage(searchState.results[searchState.currentIndex]);
+useEffect(() => {
+    if (searchState.results.length === 0 || searchState.currentIndex < 0) return;
+    const targetPage = searchState.results[searchState.currentIndex];
+    const container  = textLayerRef.current;
+
+    if (targetPage === state.currentPage) {
+      // Already on this page — re-apply highlights and scroll directly
+      // (renderTextLayer won't fire again since page didn't change)
+      if (container && searchQueryRef.current) {
+        // Small delay to ensure text layer is fully rendered
+        setTimeout(() => {
+          applyHighlights(container, searchQueryRef.current);
+          scrollToFirstHighlight(container);
+        }, 80);
+      }
+    } else {
+      goToPage(targetPage);
+      // applyHighlights will fire automatically via renderTextLayer → applyHighlights
     }
-  }, [searchState.currentIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchState.currentIndex]);
+
 
   // ── Public API ─────────────────────────────────────────────────────────────
 

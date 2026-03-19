@@ -26,7 +26,7 @@
 .pageShadow {
   box-shadow: var(--shadow-lg);
   border-radius: 2px;
-  overflow: hidden;
+  overflow: visible;
   background: var(--bg-page);
   display: inline-block;
   line-height: 0;
@@ -172,9 +172,14 @@
 .textLayer {
   position: absolute;
   inset: 0;
-  overflow: hidden;
+  overflow: clip;
   line-height: 1;
   pointer-events: auto;
+  cursor: text;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
 }
 
 .textLayer :is(span, br) {
@@ -183,6 +188,10 @@
   white-space: pre;
   cursor: text;
   transform-origin: 0% 0%;
+  -webkit-user-select: text;
+  user-select: text;
+  /* Font size is driven by --scale-factor set on the container */
+  font-size: calc(var(--scale-factor, 1) * 1px);
 }
 
 .textLayer ::selection {

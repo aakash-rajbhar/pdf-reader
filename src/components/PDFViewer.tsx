@@ -152,6 +152,57 @@ export const PDFViewer = forwardRef<HTMLDivElement, PDFViewerProps>(
       return () => window.removeEventListener("keydown", handleKey);
     }, [onNextPage, onPrevPage, onZoomIn, onZoomOut, onZoomSet, onOpenFile]);
 
+  const handleCopy = useCallback((e: React.ClipboardEvent) => {
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed) return;
+
+    const container = textLayerRef.current;
+    if (!container) return;
+
+    const spans = Array.from(container.querySelectorAll<HTMLSpanElement>("span"));
+    const range  = selection.getRangeAt(0);
+
+    const selected = spans.filter((span) => {
+      try { return range.intersectsNode(span); } catch { return false; }
+    });
+
+    selected.sort((a, b) => {
+      const ar = a.getBoundingClientRect();
+      const br = b.getBoundingClientRect();
+      const lineDiff = ar.top - br.top;
+      if (Math.abs(lineDiff) > 3) return lineDiff;
+      return ar.left - br.left;
+    });
+
+    let text = "";
+    for (let i = 0; i < selected.length; i++) {
+      const spanText = selected[i].textContent ?? "";
+      if (!spanText) continue;
+
+      if (i > 0) {
+        const prevRect = selected[i - 1].getBoundingClientRect();
+        const currRect = selected[i].getBoundingClientRect();
+        const sameLine = Math.abs(prevRect.top - currRect.top) < 5;
+
+        if (!sameLine) {
+          // New line — add newline if not already there
+          if (!text.endsWith("\n")) text += "\n";
+        } else {
+          // Same line — insert space if there's a visible gap between spans
+          const gap = currRect.left - prevRect.right;
+          if (gap > 1 && !text.endsWith(" ") && !spanText.startsWith(" ")) {
+            text += " ";
+          }
+        }
+      }
+      text += spanText;
+    }
+
+    if (!text) return;
+    e.clipboardData.setData("text/plain", text);
+    e.preventDefault();
+  }, [textLayerRef]);
+
     return (
       <div
         ref={(node) => {
@@ -190,7 +241,13 @@ export const PDFViewer = forwardRef<HTMLDivElement, PDFViewerProps>(
         {(isLoaded || isLoading) && (
           <div className={styles.canvasWrap}>
             <div className={styles.pageShadow}>
-              <div style={{ position: "relative", lineHeight: 0 }}>
+              <div
+                style={{
+                  position: "relative",
+                  lineHeight: 0,
+                  overflow: "visible",
+                }}
+              >
                 <canvas
                   ref={canvasRef}
                   className={styles.canvas}
@@ -199,7 +256,11 @@ export const PDFViewer = forwardRef<HTMLDivElement, PDFViewerProps>(
                     transition: "opacity 200ms ease",
                   }}
                 />
-                <div ref={textLayerRef} className={styles.textLayer} />
+                <div
+                  ref={textLayerRef}
+                  className={styles.textLayer}
+                  onCopy={handleCopy}
+                />
               </div>
             </div>
           </div>
@@ -209,7 +270,6 @@ export const PDFViewer = forwardRef<HTMLDivElement, PDFViewerProps>(
   },
 );
 
-// ─── Empty State ───────────────────────────────────────────
 // ─── Empty State ───────────────────────────────────────────
 function EmptyState({
   onOpenFile,
