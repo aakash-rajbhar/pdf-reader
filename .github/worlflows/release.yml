@@ -1,0 +1,79 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*" # triggers on v1.0.0, v1.1.0, etc.
+
+jobs:
+  release:
+    permissions:
+      contents: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            args: ""
+          - platform: macos-latest
+            args: "--target aarch64-apple-darwin" # Apple Silicon
+          - platform: macos-latest
+            args: "--target x86_64-apple-darwin" # Intel Mac
+          - platform: ubuntu-22.04
+            args: ""
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Install frontend deps
+        run: npm install
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "PDF Reader ${{ github.ref_name }}"
+          releaseBody: |
+            ## PDF Reader ${{ github.ref_name }}
+
+            ### Downloads
+            | Platform | File |
+            |----------|------|
+            | Windows  | `PDF.Reader_x64-setup.exe` (installer) or `PDF.Reader_x64.msi` |
+            | macOS (Apple Silicon) | `PDF.Reader_aarch64.dmg` |
+            | macOS (Intel) | `PDF.Reader_x64.dmg` |
+            | Linux | `pdf-reader_amd64.deb` or `pdf-reader_amd64.AppImage` |
+
+            ### Installing
+            - **Windows**: Run the `.exe` installer. Click "More info → Run anyway" if SmartScreen appears.
+            - **macOS**: Open the `.dmg`, drag to Applications. If blocked: System Preferences → Security → "Open Anyway"
+            - **Linux**: Install the `.deb` with `sudo dpkg -i` or run the `.AppImage` directly.
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}
