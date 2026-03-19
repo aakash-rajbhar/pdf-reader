@@ -285,7 +285,7 @@ export function usePDF(
   async function renderTextLayer(
     doc:        pdfjsLib.PDFDocumentProxy,
     pageNum:    number,
-    zoom:       number,
+    _zoom:       number,
     generation: number
   ) {
     const container = textLayerRef.current;
