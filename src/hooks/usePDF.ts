@@ -271,6 +271,8 @@ export function usePDF(
 
       renderTextLayer(doc, pageNum, zoom, generation);
       prefetchAdjacentPages(doc, pageNum, zoom, doc.numPages, generation);
+      // Signal render complete so canvas fades in cleanly
+      setState((s) => ({ ...s, isRendering: false }));
 
     } catch (err: unknown) {
       const isCancelled =

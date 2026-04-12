@@ -30,6 +30,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             read_pdf_file,
             get_initial_file,
+            show_window,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -46,6 +47,15 @@ fn get_initial_file(state: tauri::State<InitialFile>) -> Option<String> {
 async fn read_pdf_file(path: String) -> Result<String, String> {
     let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
     Ok(base64_encode(&bytes))
+}
+
+#[tauri::command]
+async fn show_window(app: tauri::AppHandle) -> Result<(), String> {
+    let window = app.get_webview_window("main")
+        .ok_or("window not found")?;
+    window.show().map_err(|e| e.to_string())?;
+    window.set_focus().map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 fn base64_encode(data: &[u8]) -> String {

@@ -9,11 +9,14 @@ import {
 import { type RecentFile } from "../hooks/useRecents";
 import styles from "./PDFViewer.module.css";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 interface PDFViewerProps {
   canvasRef: RefObject<HTMLCanvasElement>;
   textLayerRef: RefObject<HTMLDivElement>;
   isLoaded: boolean;
   isLoading: boolean;
+  initializing: boolean;
   error: string | null;
   zoom: number;
   onZoomIn: () => void;
@@ -27,6 +30,8 @@ interface PDFViewerProps {
   onRemoveRecent: (fileName: string) => void;
 }
 
+// ─── Main Component ───────────────────────────────────────────────────────────
+
 export const PDFViewer = forwardRef<HTMLDivElement, PDFViewerProps>(
   function PDFViewer(
     {
@@ -34,6 +39,7 @@ export const PDFViewer = forwardRef<HTMLDivElement, PDFViewerProps>(
       textLayerRef,
       isLoaded,
       isLoading,
+      initializing,
       error,
       zoom,
       onZoomIn,
@@ -55,14 +61,14 @@ export const PDFViewer = forwardRef<HTMLDivElement, PDFViewerProps>(
     const isDragging = useRef(false);
     const dragStart = useRef({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
 
-    // ── Wheel: zoom with Ctrl, scroll otherwise ──
+    // ── Ctrl+Scroll to zoom ───────────────────────────────────────────────────
+
     const handleWheel = useCallback(
       (e: WheelEvent) => {
-        if (e.ctrlKey || e.metaKey) {
-          e.preventDefault();
-          const delta = e.deltaY > 0 ? -0.1 : 0.1;
-          onZoomSet(Math.max(0.25, Math.min(4.0, zoom + delta)));
-        }
+        if (!e.ctrlKey && !e.metaKey) return;
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        onZoomSet(Math.max(0.25, Math.min(4.0, zoom + delta)));
       },
       [zoom, onZoomSet],
     );
@@ -74,41 +80,48 @@ export const PDFViewer = forwardRef<HTMLDivElement, PDFViewerProps>(
       return () => el.removeEventListener("wheel", handleWheel);
     }, [handleWheel]);
 
-    // ── Drag to pan ──
-    const handleMouseDown = (e: React.MouseEvent) => {
-      if (e.button !== 0) return;
-      const el = containerRef.current;
-      if (!el) return;
-      isDragging.current = true;
-      dragStart.current = {
-        x: e.clientX,
-        y: e.clientY,
-        scrollLeft: el.scrollLeft,
-        scrollTop: el.scrollTop,
-      };
-      el.style.cursor = "grabbing";
-    };
+    // ── Drag to pan ───────────────────────────────────────────────────────────
 
-    const handleMouseMove = (e: React.MouseEvent) => {
+    const handleMouseDown = useCallback(
+      (e: React.MouseEvent) => {
+        if (e.button !== 0) return;
+        const el = containerRef.current;
+        if (!el) return;
+        if (textLayerRef.current?.contains(e.target as Node)) return;
+        isDragging.current = true;
+        dragStart.current = {
+          x: e.clientX,
+          y: e.clientY,
+          scrollLeft: el.scrollLeft,
+          scrollTop: el.scrollTop,
+        };
+        el.style.cursor = "grabbing";
+      },
+      [textLayerRef],
+    );
+
+    const handleMouseMove = useCallback((e: React.MouseEvent) => {
       if (!isDragging.current) return;
       const el = containerRef.current;
       if (!el) return;
-      const dx = e.clientX - dragStart.current.x;
-      const dy = e.clientY - dragStart.current.y;
-      el.scrollLeft = dragStart.current.scrollLeft - dx;
-      el.scrollTop = dragStart.current.scrollTop - dy;
-    };
+      el.scrollLeft =
+        dragStart.current.scrollLeft - (e.clientX - dragStart.current.x);
+      el.scrollTop =
+        dragStart.current.scrollTop - (e.clientY - dragStart.current.y);
+    }, []);
 
-    const handleMouseUp = () => {
+    const handleMouseUp = useCallback(() => {
       isDragging.current = false;
       const el = containerRef.current;
       if (el) el.style.cursor = "";
-    };
+    }, []);
 
-    // ── Keyboard shortcuts ──
+    // ── Keyboard shortcuts ────────────────────────────────────────────────────
+
     useEffect(() => {
       const handleKey = (e: KeyboardEvent) => {
         if (e.target instanceof HTMLInputElement) return;
+        const ctrl = e.ctrlKey || e.metaKey;
         switch (e.key) {
           case "ArrowRight":
           case "ArrowDown":
@@ -123,25 +136,25 @@ export const PDFViewer = forwardRef<HTMLDivElement, PDFViewerProps>(
             break;
           case "+":
           case "=":
-            if (e.ctrlKey || e.metaKey) {
+            if (ctrl) {
               e.preventDefault();
               onZoomIn();
             }
             break;
           case "-":
-            if (e.ctrlKey || e.metaKey) {
+            if (ctrl) {
               e.preventDefault();
               onZoomOut();
             }
             break;
           case "0":
-            if (e.ctrlKey || e.metaKey) {
+            if (ctrl) {
               e.preventDefault();
               onZoomSet(1.0);
             }
             break;
           case "o":
-            if (e.ctrlKey || e.metaKey) {
+            if (ctrl) {
               e.preventDefault();
               onOpenFile();
             }
@@ -152,22 +165,83 @@ export const PDFViewer = forwardRef<HTMLDivElement, PDFViewerProps>(
       return () => window.removeEventListener("keydown", handleKey);
     }, [onNextPage, onPrevPage, onZoomIn, onZoomOut, onZoomSet, onOpenFile]);
 
-    // REPLACE the entire handleCopy function with this:
-    const handleCopy = useCallback((e: React.ClipboardEvent) => {
-      const selection = window.getSelection();
-      if (!selection || selection.isCollapsed) return;
+    // ── Copy: sort text nodes by visual position ──────────────────────────────
 
-      const text = selection.toString();
-      if (!text) return;
+    const handleCopy = useCallback(
+      (e: React.ClipboardEvent) => {
+        const selection = window.getSelection();
+        if (!selection || selection.isCollapsed || selection.rangeCount === 0)
+          return;
 
-      e.clipboardData.setData("text/plain", text);
-      e.preventDefault();
-    }, []);
+        const range = selection.getRangeAt(0);
+        const container = textLayerRef.current;
+        if (!container) return;
+
+        const walker = document.createTreeWalker(
+          range.commonAncestorContainer,
+          NodeFilter.SHOW_TEXT,
+          {
+            acceptNode: (node) => {
+              if (!range.intersectsNode(node)) return NodeFilter.FILTER_REJECT;
+              if (!container.contains(node)) return NodeFilter.FILTER_REJECT;
+              return NodeFilter.FILTER_ACCEPT;
+            },
+          },
+        );
+
+        const nodes: { text: string; rect: DOMRect }[] = [];
+        let node: Node | null;
+        while ((node = walker.nextNode())) {
+          const span = node.parentElement;
+          if (!span) continue;
+          const rect = span.getBoundingClientRect();
+          if (rect.width === 0 && rect.height === 0) continue;
+          nodes.push({ text: node.textContent ?? "", rect });
+        }
+
+        if (nodes.length === 0) return;
+
+        nodes.sort((a, b) => {
+          const yDiff = a.rect.top - b.rect.top;
+          if (Math.abs(yDiff) > 5) return yDiff;
+          return a.rect.left - b.rect.left;
+        });
+
+        let result = "";
+        for (let i = 0; i < nodes.length; i++) {
+          if (i === 0) {
+            result += nodes[i].text;
+            continue;
+          }
+          const prev = nodes[i - 1].rect;
+          const curr = nodes[i].rect;
+          const newLine = curr.top - prev.bottom > 2;
+          const hasGap = curr.left - prev.right > 3;
+          if (newLine) {
+            result += "\n" + nodes[i].text;
+          } else if (
+            hasGap &&
+            !result.endsWith(" ") &&
+            !nodes[i].text.startsWith(" ")
+          ) {
+            result += " " + nodes[i].text;
+          } else {
+            result += nodes[i].text;
+          }
+        }
+
+        if (!result.trim()) return;
+        e.clipboardData.setData("text/plain", result);
+        e.preventDefault();
+      },
+      [textLayerRef],
+    );
+
+    // ── Render ────────────────────────────────────────────────────────────────
 
     return (
       <div
         ref={(node) => {
-          // Attach both the forwarded ref and internal ref
           (containerRef as MutableRefObject<HTMLDivElement | null>).current =
             node;
           if (typeof ref === "function") ref(node);
@@ -180,25 +254,30 @@ export const PDFViewer = forwardRef<HTMLDivElement, PDFViewerProps>(
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       >
-        {/* ── Empty state ── */}
-        {!isLoaded && !isLoading && !error && (
-          <EmptyState
-            onOpenFile={onOpenFile}
-            recents={recents}
-            onOpenRecent={onOpenRecent}
-            onRemoveRecent={onRemoveRecent}
-          />
-        )}
+        {/* ── Initializing / Empty ── */}
+        {!isLoaded &&
+          !isLoading &&
+          !error &&
+          (initializing ? (
+            <InitializingState />
+          ) : (
+            <EmptyState
+              onOpenFile={onOpenFile}
+              recents={recents}
+              onOpenRecent={onOpenRecent}
+              onRemoveRecent={onRemoveRecent}
+            />
+          ))}
 
-        {/* ── Loading spinner ── */}
+        {/* ── Loading ── */}
         {isLoading && <LoadingState />}
 
         {/* ── Error ── */}
-        {error && !isLoaded && (
+        {!isLoaded && !!error && (
           <ErrorState message={error} onRetry={onOpenFile} />
         )}
 
-        {/* ── Canvas ── */}
+        {/* ── PDF Canvas + Text Layer ── */}
         {(isLoaded || isLoading) && (
           <div className={styles.canvasWrap}>
             <div className={styles.pageShadow}>
@@ -213,8 +292,8 @@ export const PDFViewer = forwardRef<HTMLDivElement, PDFViewerProps>(
                   ref={canvasRef}
                   className={styles.canvas}
                   style={{
-                    opacity: isLoading ? 0.3 : 1,
-                    transition: "opacity 200ms ease",
+                    opacity: isLoading || !isLoaded ? 0 : 1,
+                    transition: "opacity 150ms ease",
                   }}
                 />
                 <div
@@ -231,7 +310,44 @@ export const PDFViewer = forwardRef<HTMLDivElement, PDFViewerProps>(
   },
 );
 
-// ─── Empty State ───────────────────────────────────────────
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function InitializingState() {
+  return (
+    <div className={styles.loadingState}>
+      <div className={styles.spinner} />
+    </div>
+  );
+}
+
+function LoadingState() {
+  return (
+    <div className={styles.loadingState}>
+      <div className={styles.spinner} />
+      <p className={styles.loadingText}>Loading document…</p>
+    </div>
+  );
+}
+
+function ErrorState({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry: () => void;
+}) {
+  return (
+    <div className={styles.errorState}>
+      <div className={styles.errorIcon}>⚠</div>
+      <h3 className={styles.errorTitle}>Failed to load PDF</h3>
+      <p className={styles.errorMessage}>{message}</p>
+      <button className={styles.emptyBtn} onClick={onRetry}>
+        Try another file
+      </button>
+    </div>
+  );
+}
+
 function EmptyState({
   onOpenFile,
   recents,
@@ -239,20 +355,19 @@ function EmptyState({
   onRemoveRecent,
 }: {
   onOpenFile: () => void;
-  recents: import("../hooks/useRecents").RecentFile[];
+  recents: RecentFile[];
   onOpenRecent: (filePath: string, fileName: string) => void;
   onRemoveRecent: (fileName: string) => void;
 }) {
-  const hasRecents = recents.length > 0;
-
   const formatDate = (ts: number) => {
-    const d = new Date(ts);
-    const now = new Date();
-    const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
-    if (diffDays === 0) return "Today";
-    if (diffDays === 1) return "Yesterday";
-    if (diffDays < 7) return `${diffDays} days ago`;
-    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    const diff = Math.floor((Date.now() - ts) / 86400000);
+    if (diff === 0) return "Today";
+    if (diff === 1) return "Yesterday";
+    if (diff < 7) return `${diff} days ago`;
+    return new Date(ts).toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+    });
   };
 
   return (
@@ -318,7 +433,7 @@ function EmptyState({
         <p className={styles.emptyHint}>Ctrl+O</p>
       </div>
 
-      {hasRecents && (
+      {recents.length > 0 && (
         <div className={styles.recentsWrap}>
           <p className={styles.recentsLabel}>Recent</p>
           <div className={styles.recentsList}>
@@ -375,10 +490,8 @@ function EmptyState({
                   <div className={styles.recentInfo}>
                     <span className={styles.recentName}>{r.fileName}</span>
                     <span className={styles.recentMeta}>
-                      {r.totalPages > 0
-                        ? `Page ${r.lastPage} of ${r.totalPages}`
-                        : ""}
-                      {r.totalPages > 0 ? " · " : ""}
+                      {r.totalPages > 0 &&
+                        `Page ${r.lastPage} of ${r.totalPages} · `}
                       {formatDate(r.openedAt)}
                     </span>
                   </div>
@@ -398,36 +511,6 @@ function EmptyState({
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-// ─── Loading State ─────────────────────────────────────────
-function LoadingState() {
-  return (
-    <div className={styles.loadingState}>
-      <div className={styles.spinner} />
-      <p className={styles.loadingText}>Loading document…</p>
-    </div>
-  );
-}
-
-// ─── Error State ───────────────────────────────────────────
-function ErrorState({
-  message,
-  onRetry,
-}: {
-  message: string;
-  onRetry: () => void;
-}) {
-  return (
-    <div className={styles.errorState}>
-      <div className={styles.errorIcon}>⚠</div>
-      <h3 className={styles.errorTitle}>Failed to load PDF</h3>
-      <p className={styles.errorMessage}>{message}</p>
-      <button className={styles.emptyBtn} onClick={onRetry}>
-        Try another file
-      </button>
     </div>
   );
 }
