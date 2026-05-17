@@ -2,7 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use tauri::Manager;
-use tauri::Emitter;
+// use tauri::Emitter;
 use std::sync::Mutex;
 
 // Holds the file path passed via CLI (double-click / file association)
