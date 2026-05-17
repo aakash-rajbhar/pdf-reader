@@ -7,7 +7,9 @@ declare module "@tauri-apps/plugin-dialog" {
     filters?: Array<{ name: string; extensions: string[] }>;
     defaultPath?: string;
   }
-  export function open(options?: OpenDialogOptions): Promise<string | string[] | null>;
+  export function open(
+    options?: OpenDialogOptions,
+  ): Promise<string | string[] | null>;
 }
 
 declare module "@tauri-apps/plugin-fs" {
@@ -24,11 +26,13 @@ declare module "@tauri-apps/api/event" {
   export type UnlistenFn = () => void;
   export function listen<T>(
     event: string,
-    handler: (event: { payload: T }) => void
+    handler: (event: { payload: T }) => void,
   ): Promise<UnlistenFn>;
 }
 
-
 declare module "@tauri-apps/api/core" {
-  export function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T>;
+  export function invoke<T>(
+    cmd: string,
+    args?: Record<string, unknown>,
+  ): Promise<T>;
 }

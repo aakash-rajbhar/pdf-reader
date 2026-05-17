@@ -45,7 +45,9 @@
   font-family: inherit;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 120ms ease, border-color 120ms ease;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
 }
 .openBtn:hover {
   background: var(--bg-button-hover);
@@ -90,7 +92,9 @@
   border: none;
   border-radius: 5px;
   cursor: pointer;
-  transition: background 100ms ease, color 100ms ease;
+  transition:
+    background 100ms ease,
+    color 100ms ease;
   font-family: inherit;
 }
 .iconBtn:hover:not(:disabled) {
@@ -133,7 +137,9 @@
   font-family: inherit;
   cursor: text;
   text-align: center;
-  transition: background 100ms, border-color 100ms;
+  transition:
+    background 100ms,
+    border-color 100ms;
 }
 .numBtn:hover {
   background: var(--bg-input);
@@ -187,7 +193,10 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   cursor: pointer;
-  transition: background 120ms, border-color 120ms, color 120ms;
+  transition:
+    background 120ms,
+    border-color 120ms,
+    color 120ms;
   font-family: inherit;
 }
 .themeBtn:hover {

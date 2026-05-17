@@ -3,14 +3,14 @@ import { useState, useCallback } from "react";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface RecentFile {
-  fileName:  string;
-  filePath:  string;   // full OS path (Tauri) or "" (browser)
-  lastPage:  number;
+  fileName: string;
+  filePath: string; // full OS path (Tauri) or "" (browser)
+  lastPage: number;
   totalPages: number;
-  openedAt:  number;   // timestamp ms
+  openedAt: number; // timestamp ms
 }
 
-const LS_KEY   = "pdfr:recents";
+const LS_KEY = "pdfr:recents";
 const MAX_RECENTS = 5;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -28,7 +28,9 @@ function loadFromStorage(): RecentFile[] {
 function saveToStorage(recents: RecentFile[]) {
   try {
     localStorage.setItem(LS_KEY, JSON.stringify(recents));
-  } catch { /* quota exceeded — ignore */ }
+  } catch {
+    /* quota exceeded — ignore */
+  }
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -53,15 +55,18 @@ export function useRecents() {
   }, []);
 
   // Update the lastPage for a file that's already in recents
-  const updateRecentPage = useCallback((fileName: string, lastPage: number, totalPages: number) => {
-    setRecents((prev) => {
-      const updated = prev.map((r) =>
-        r.fileName === fileName ? { ...r, lastPage, totalPages } : r
-      );
-      saveToStorage(updated);
-      return updated;
-    });
-  }, []);
+  const updateRecentPage = useCallback(
+    (fileName: string, lastPage: number, totalPages: number) => {
+      setRecents((prev) => {
+        const updated = prev.map((r) =>
+          r.fileName === fileName ? { ...r, lastPage, totalPages } : r,
+        );
+        saveToStorage(updated);
+        return updated;
+      });
+    },
+    [],
+  );
 
   const removeRecent = useCallback((fileName: string) => {
     setRecents((prev) => {

@@ -8,7 +8,13 @@ interface StatusBarProps {
   fileName: string;
 }
 
-export function StatusBar({ isLoaded, currentPage, totalPages, zoom, fileName }: StatusBarProps) {
+export function StatusBar({
+  isLoaded,
+  currentPage,
+  totalPages,
+  zoom,
+  fileName,
+}: StatusBarProps) {
   if (!isLoaded) return null;
 
   const zoomPct = Math.round(zoom * 100);

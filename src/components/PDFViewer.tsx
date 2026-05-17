@@ -124,16 +124,30 @@ export const PDFViewer = forwardRef<HTMLDivElement, PDFViewerProps>(
         const ctrl = e.ctrlKey || e.metaKey;
         switch (e.key) {
           case "ArrowRight":
-          case "ArrowDown":
-          case " ":
             e.preventDefault();
             onNextPage();
             break;
+
           case "ArrowLeft":
-          case "ArrowUp":
             e.preventDefault();
             onPrevPage();
             break;
+
+          case "ArrowDown":
+            containerRef.current?.scrollBy({ top: 80, behavior: "smooth" });
+            break;
+
+          case "ArrowUp":
+            containerRef.current?.scrollBy({ top: -80, behavior: "smooth" });
+            break;
+          
+          case "0":
+            if (ctrl) {
+              e.preventDefault();
+              onZoomSet(1.0);
+            }
+            break;
+          
           case "+":
           case "=":
             if (ctrl) {
@@ -141,22 +155,35 @@ export const PDFViewer = forwardRef<HTMLDivElement, PDFViewerProps>(
               onZoomIn();
             }
             break;
+
           case "-":
             if (ctrl) {
               e.preventDefault();
               onZoomOut();
             }
             break;
-          case "0":
-            if (ctrl) {
-              e.preventDefault();
-              onZoomSet(1.0);
-            }
-            break;
+
           case "o":
+          case "O":
             if (ctrl) {
               e.preventDefault();
               onOpenFile();
+            }
+            break;
+          
+
+          case " ":
+            e.preventDefault();
+            if (e.shiftKey) {
+              containerRef.current?.scrollBy({
+                top: -window.innerHeight * 0.8,
+                behavior: "smooth",
+              });
+            } else {
+              containerRef.current?.scrollBy({
+                top: window.innerHeight * 0.8,
+                behavior: "smooth",
+              });
             }
             break;
         }
